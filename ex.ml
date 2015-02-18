@@ -32,6 +32,7 @@ and s  = "second"
 and t  = "third"
 and ft = "fourth"
 
+(* Some graphs: *)
 let g1 = Gr.add_vertex Gr.empty f 
 let g2 = Gr.add_vertex g1 s
 let g3 = Gr.add_edge g2 f s
@@ -68,11 +69,43 @@ let point_to_right1 = left_arrow ^ right_floor
 let point_to_left2  = left_floor ^ "-"
 let point_to_right2 = "-" ^ right_floor
 
+type line = { left_arrow   : bool      (* point from left? *)
+            ; left_offset  : int       (* Amount of space on the left. *)
+            ; text         : string    (* What to write. *)
+            ; right_offset : int       (* Add arrow automatically. *)
+            }
+
+let make_line ?(left_arrow=false) ?(left_offset=0) ?(right_offset=0) text =
+  { left_arrow    = left_arrow
+  ; left_offset   = left_offset
+  ; text          = text
+  ; right_offset  = right_offset
+  }
+
+let output_line oc l =
+  let start = 
+    if l.left_arrow then
+      point_to_left2 ^ (String.make l.left_offset '-')
+    else
+      String.make l.left_offset ' '
+  in
+  let stop =
+    if l.right_offset > 0 then
+      (right_arrow ^ String.make (l.right_offset - 2) '-' ^ right_celing)
+    else
+      ""
+  in
+  Printf.fprintf oc "%s%s%s\n" start l.text stop
+
+let make_lines g v =
+  let first_line    = make_line v in
+  let first_offset  = String.length first_line.text - 2 in
+  let make_succ     = make_line ~left_arrow:true ~left_offset:first_offset in
+  let succ_lines    = Gr.fold_succ (fun v l -> make_succ v :: l) g v [] in
+  first_line :: succ_lines
+
 let output_vertex g v =
-  Printf.printf "%s\n" v;
-  Gr.iter_succ (Printf.printf "%s%s\n" point_to_left2) g v;
-  Gr.iter_pred (Printf.printf "%s%s\n" point_to_right2) g v;
-  ()
+  List.iter (output_line stdout) (make_lines g v)
 
 let get_vertex g =
   Gr.fold_vertex (fun x -> function | None -> Some x | Some x as r -> r) g None
