@@ -27,17 +27,17 @@ end
 let test_graph () =
  *)
 
-let f  = "first" 
-and s  = "second" 
+let f  = "first"
+and s  = "second"
 and t  = "third"
 and ft = "fourth"
 
 (* Some graphs: *)
-let g1 = Gr.add_vertex Gr.empty f 
+let g1 = Gr.add_vertex Gr.empty f
 let g2 = Gr.add_vertex g1 s
 let g3 = Gr.add_edge g2 f s
 let g4 = Gr.add_edge g3 f t
-let g5 = Gr.add_edge g4 f ft
+let g5 = Gr.add_edge g4 ft f
 
 (* What I wish i could do:
 let test_graph2 () =
@@ -83,7 +83,7 @@ let make_line ?(left_arrow=false) ?(left_offset=0) ?(right_offset=0) text =
   }
 
 let output_line oc l =
-  let start = 
+  let start =
     if l.left_arrow then
       point_to_left2 ^ (String.make l.left_offset '-')
     else
@@ -91,18 +91,36 @@ let output_line oc l =
   in
   let stop =
     if l.right_offset > 0 then
-      (right_arrow ^ String.make (l.right_offset - 2) '-' ^ right_celing)
+      (right_arrow ^ String.make (l.right_offset) '-' ^ right_celing)
     else
       ""
   in
   Printf.fprintf oc "%s%s%s\n" start l.text stop
 
+let buffer_width = ref 1
+
 let make_lines g v =
-  let first_line    = make_line v in
-  let first_offset  = String.length first_line.text - 2 in
-  let make_succ     = make_line ~left_arrow:true ~left_offset:first_offset in
-  let succ_lines    = Gr.fold_succ (fun v l -> make_succ v :: l) g v [] in
-  first_line :: succ_lines
+    let create_lines fold make =
+        fold (fun v (len, lst) ->
+            (max len (String.length v), make v :: lst))
+            g v (0, [])
+    in
+    let first_line    = make_line v in
+    let first_length  = String.length first_line.text + !buffer_width in
+    let make_succ     = make_line ~left_arrow:true
+                          ~left_offset:(first_length - 2)
+    in
+    let (ml, sllst)   = create_lines Gr.fold_succ make_succ in
+    let ml            = ml + !buffer_width in
+    let make_pred     = make_line ~left_arrow:false
+                          ~left_offset:(first_length + ml)
+    in
+    let ml2, pllst    = create_lines Gr.fold_pred make_pred in
+    Printf.printf "ml: %d ml2: %d\n" ml ml2;
+    if List.length pllst = 0
+    then first_line :: sllst
+    else { first_line with right_offset = ml } :: sllst @ pllst
+
 
 let output_vertex g v =
   List.iter (output_line stdout) (make_lines g v)
@@ -115,4 +133,13 @@ let get_vertex g =
 
 let output g = output_vertex g (get_vertex g)
 
+let test n g =
+  Printf.printf "ouputing: %d\n" n;
+  output g
+
+let () = test 1 g1
+let () = test 2 g2
+let () = test 3 g3
+let () = test 4 g4
+let () = test 5 g5
 
