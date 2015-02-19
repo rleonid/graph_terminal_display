@@ -31,6 +31,7 @@ let f  = "first"
 and s  = "second"
 and t  = "third"
 and ft = "fourth"
+and fi = "fifth"
 
 (* Some graphs: *)
 let g1 = Gr.add_vertex Gr.empty f
@@ -38,6 +39,8 @@ let g2 = Gr.add_vertex g1 s
 let g3 = Gr.add_edge g2 f s
 let g4 = Gr.add_edge g3 f t
 let g5 = Gr.add_edge g4 ft f
+let g6 = Gr.add_edge g4 ft s
+let g7 = Gr.add_edge g5 s fi
 
 (* What I wish i could do:
 let test_graph2 () =
@@ -130,6 +133,25 @@ let make_lines g v =
           (List.map (fun l -> {l with right_verticals = ml - (String.length l.text) :: []}) sllst)
           @ pllst
 
+(* TODO: I am making assumptions that the graphs are Acyclical! *)
+
+module M = Map.Make (struct type t = string let compare = compare end)
+
+let assign_columns g v =
+  let n = Gr.nb_vertex g in
+  let q = Queue.create () in
+  let add_to_queue m c v = if not (M.mem v m) then Queue.add (v, c) q in
+  Queue.add (v, 0) q;
+  let rec loop m =
+    if M.cardinal m = n     (* assigned everyone *)
+    then M.bindings m
+    else
+      let (v, c) = Queue.pop q in
+      List.iter (add_to_queue m (c + 1)) (Gr.succ g v);
+      List.iter (add_to_queue m (c - 1)) (Gr.pred g v);
+      loop (M.add v c m)
+  in
+  loop (M.singleton v 0)
 
 let output_vertex g v =
   List.iter (output_line stdout) (make_lines g v)
@@ -151,4 +173,6 @@ let () = test 2 g2
 let () = test 3 g3
 let () = test 4 g4
 let () = test 5 g5
+let () = test 6 g6
+let () = test 7 g7
 
