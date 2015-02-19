@@ -38,6 +38,7 @@ let g2 = Gr.add_vertex g1 s
 let g3 = Gr.add_edge g2 f s
 let g4 = Gr.add_edge g3 f t
 let g5 = Gr.add_edge g4 ft f
+let g6 = Gr.add_edge g4 ft s
 
 (* What I wish i could do:
 let test_graph2 () =
@@ -95,7 +96,7 @@ let output_line oc l =
   in
   let stop =
     if l.right_offset > 0 then
-      let r = right_arrow ^ String.make (l.right_offset) '-' ^ right_celing in
+      let r = left_arrow ^ String.make (l.right_offset) '-' ^ right_celing in
       List.iter (fun i -> r.[i] <- vertical_bar) l.right_verticals;
       r
     else
@@ -151,4 +152,5 @@ let () = test 2 g2
 let () = test 3 g3
 let () = test 4 g4
 let () = test 5 g5
+let () = test 6 g6
 
