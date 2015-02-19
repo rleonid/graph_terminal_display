@@ -62,6 +62,7 @@ let left_ceiling  = "\xE2\x8C\x88"
 let right_celing  = "\xE2\x8C\x89"
 let left_floor    = "\xE2\x8C\x8A"
 let right_floor   = "\xE2\x8C\x8B"
+let vertical_bar  = '|'
 
 let point_to_left1  = left_floor ^ right_arrow
 let point_to_right1 = left_arrow ^ right_floor
@@ -69,18 +70,21 @@ let point_to_right1 = left_arrow ^ right_floor
 let point_to_left2  = left_floor ^ "-"
 let point_to_right2 = "-" ^ right_floor
 
-type line = { left_arrow   : bool      (* point from left? *)
-            ; left_offset  : int       (* Amount of space on the left. *)
-            ; text         : string    (* What to write. *)
-            ; right_offset : int       (* Add arrow automatically. *)
+type line = { left_arrow   : bool         (* point from left? *)
+            ; left_offset  : int          (* Amount of space on the left. *)
+            ; text         : string       (* What to write. *)
+            ; right_offset : int          (* Add arrow automatically. *)
+            ; right_verticals : int list  (* Where do we add right vertical lines *)
             }
 
-let make_line ?(left_arrow=false) ?(left_offset=0) ?(right_offset=0) text =
-  { left_arrow    = left_arrow
-  ; left_offset   = left_offset
-  ; text          = text
-  ; right_offset  = right_offset
-  }
+let make_line ?(left_arrow=false) ?(left_offset=0) ?(right_offset=0)
+    ?(right_verticals=[]) text =
+        { left_arrow      = left_arrow
+        ; left_offset     = left_offset
+        ; text            = text
+        ; right_offset    = right_offset
+        ; right_verticals = right_verticals
+        }
 
 let output_line oc l =
   let start =
@@ -91,9 +95,12 @@ let output_line oc l =
   in
   let stop =
     if l.right_offset > 0 then
-      (right_arrow ^ String.make (l.right_offset) '-' ^ right_celing)
+      let r = right_arrow ^ String.make (l.right_offset) '-' ^ right_celing in
+      List.iter (fun i -> r.[i] <- vertical_bar) l.right_verticals;
+      r
     else
-      ""
+      List.fold_left (fun s i -> s ^ String.make i ' ' ^ String.make 1 vertical_bar)
+        "" l.right_verticals
   in
   Printf.fprintf oc "%s%s%s\n" start l.text stop
 
@@ -119,7 +126,9 @@ let make_lines g v =
     Printf.printf "ml: %d ml2: %d\n" ml ml2;
     if List.length pllst = 0
     then first_line :: sllst
-    else { first_line with right_offset = ml } :: sllst @ pllst
+    else { first_line with right_offset = ml } ::
+          (List.map (fun l -> {l with right_verticals = ml - (String.length l.text) :: []}) sllst)
+          @ pllst
 
 
 let output_vertex g v =
