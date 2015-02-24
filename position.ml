@@ -42,6 +42,16 @@ let simple_x_and_y msg_arr terminal_width =
   else
     [] (*Printf.printf "failure\n" *)
 
+let predecessor_list_to_indexed_arr lst =
+  let module M = Map.Make (struct type t = string let compare = compare end) in
+  let (_, m) =
+    List.fold_left (fun (idx,m) (v,_) -> (idx+1, M.add v idx m))
+      (0, M.empty) lst
+  in
+  List.map (fun (v,ps) -> v, List.map (fun v -> M.find v m) ps) lst
+  |> Array.of_list
+
+let pltia = predecessor_list_to_indexed_arr
 
 (* Each msg now has an array of integers, indexing back into the array,
    indicating precedense.
@@ -61,7 +71,7 @@ let with_predecessors msg_arr terminal_width =
     let others = snd msg_arr.(i) in
     (* 'On Top' means _lower_ y position. *)
     List.iter (fun oi ->
-        let len = i2e (String.length (fst msg_arr.(oi)) + 1) in
+        let len = i2e (String.length (fst msg_arr.(oi))) in
         if oi <> 0 then Cstr.post (fd2e ypos.(i) <~ fd2e ypos.(oi));
         Cstr.post (fd2e xpos.(i) <~ fd2e xpos.(oi) -~ len))
         others
