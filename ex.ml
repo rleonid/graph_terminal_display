@@ -73,10 +73,10 @@ let point_to_right1 = left_arrow ^ right_floor
 let point_to_left2  = left_floor ^ "-"
 let point_to_right2 = "-" ^ right_floor
 
-type line = { left_arrow   : bool         (* point from left? *)
-            ; left_offset  : int          (* Amount of space on the left. *)
-            ; text         : string       (* What to write. *)
-            ; right_offset : int          (* Add arrow automatically. *)
+type line = { left_arrow      : bool      (* point from left? *)
+            ; left_offset     : int       (* Amount of space on the left. *)
+            ; text            : string    (* What to write. *)
+            ; right_offset    : int       (* Add arrow automatically. *)
             ; right_verticals : int list  (* Where do we add right vertical lines *)
             }
 
@@ -126,7 +126,7 @@ let make_lines g v =
                           ~left_offset:(first_length + ml)
     in
     let ml2, pllst    = create_lines Gr.fold_pred make_pred in
-    Printf.printf "ml: %d ml2: %d\n" ml ml2;
+    (*Printf.printf "ml: %d ml2: %d\n" ml ml2; *)
     if List.length pllst = 0
     then first_line :: sllst
     else { first_line with right_offset = ml } ::
@@ -153,8 +153,44 @@ let assign_columns g v =
   in
   loop (M.singleton v 0)
 
-let output_vertex g v =
-  List.iter (output_line stdout) (make_lines g v)
+(* Create a precedence array.  *)
+let to_precedence_lst g v =
+  let n = Gr.nb_vertex g in
+  let q = Queue.create () in
+  let add_to_queue m v = if not (M.mem v m) then Queue.add v q in
+  Queue.add v q;
+  let rec report m =
+    M.bindings m
+    |> List.sort (fun (_, (o1, _)) (_, (o2, _)) -> compare o1 o2)
+    |> List.map (fun (v, (_, plst)) -> (v, plst))
+  and loop c m =
+    if M.cardinal m = n then (* assigned everyone *)
+      report m
+    else if Queue.is_empty q then
+      begin
+        Printf.eprintf "Warning: graph is not connected!\n";
+        report m
+      end
+    else
+      let vertex = Queue.pop q in
+      let v_succ = Gr.succ g vertex in
+      let v_pred = Gr.pred g vertex in
+      let m'     = M.add vertex (c, v_succ) m in
+      List.iter (add_to_queue m') v_pred;
+      List.iter (add_to_queue m') v_succ;
+      loop (c + 1) m'
+  in
+  loop 0 M.empty
+
+let constrained_lines g v =
+  let as_prcdlst = to_precedence_lst g v in
+  let aligned    = Position.align_by_precedence as_prcdlst ~terminal_width:80
+                      ~display_padding:2 in
+  let sorted     = List.sort (fun (_, (_, y1)) (_, (_, y2)) -> compare y1 y2) aligned in
+  let as_lines   = List.map (fun (l, (x, _)) -> make_line ~left_offset:x l) sorted in
+  List.iter (output_line stdout) as_lines
+
+let output_vertex_old g v = List.iter (output_line stdout) (make_lines g v)
 
 let get_vertex g =
   Gr.fold_vertex (fun x -> function | None -> Some x | Some x as r -> r) g None
@@ -162,7 +198,8 @@ let get_vertex g =
      | None   -> raise (Invalid_argument "Invalid_graph")
      | Some v -> v
 
-let output g = output_vertex g (get_vertex g)
+(*let output g = output_vertex g (get_vertex g) *)
+let output g = constrained_lines g (get_vertex g)
 
 let test n g =
   Printf.printf "ouputing: %d\n" n;
